@@ -1,0 +1,342 @@
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "RTClib.h"
+RTC_DS3231 rtc;
+#define regi 14
+#define up 16
+#define down 17
+#define del 15
+#define OLED_RESET -1
+#define SCREEN_ADDRESS 0x3C
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 32
+#define buzzer 5
+#define led 7
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+DateTime now;
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+#include <Adafruit_Fingerprint.h>
+
+#if (defined(_AVR) || defined(ESP8266)) && !defined(__AVR_ATmega2560_)
+
+SoftwareSerial mySerial(2, 3);
+
+#else
+
+#define mySerial Serial1
+
+#endif
+
+
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+
+void setup()
+{
+  Serial.begin(9600);
+  display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
+  while (!Serial);  
+  delay(100);
+  display.clearDisplay();
+  // Serial.println("\n\nAdafruit finger detect test");
+  rtc.begin();
+  finger.begin(57600);
+  delay(5);
+  finger.verifyPassword();
+  // if () {
+  //   // Serial.println("Found fingerprint sensor!");
+  // } else {
+  //   // Serial.println("Did not find fingerprint sensor :(");
+  //   while (1) { delay(1); }
+  // }
+      pinMode(led, OUTPUT);
+    pinMode(buzzer, OUTPUT);
+    pinMode(regi, INPUT_PULLUP);
+    pinMode(up, INPUT_PULLUP);
+    pinMode(down, INPUT_PULLUP);
+    pinMode(del, INPUT_PULLUP);
+}
+int id;
+void loop()                     
+{
+  e :
+  id=1;
+  display.clearDisplay();
+    display.setTextColor(WHITE, BLACK);
+    now = rtc.now();
+    display.setCursor(0, 0);
+    display.print(daysOfTheWeek[now.dayOfTheWeek()]);
+    display.print(" ");
+    display.print(now.day());
+    display.print("/");
+    display.print(now.month());
+    display.print("/");
+    display.println(now.year(), DEC);
+    display.setTextSize(2);
+    display.print(now.hour());
+    display.print(":");
+    display.print(now.minute());
+    display.print(":");
+    display.print(now.second());
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.display();
+    
+  int p = finger.getImage();
+if(p==FINGERPRINT_OK)
+{
+  p = finger.image2Tz();
+  if(p != FINGERPRINT_OK)
+      Serial.println("Unknown error");
+
+  p = finger.fingerFastSearch();
+  if (p == FINGERPRINT_OK) {
+    Serial.print("Attendance registered of id ::");
+    Serial.print(" ");
+    Serial.print(finger.fingerID);
+    Serial.print("  ");
+    Serial.print("DATE :");
+    Serial.print(" ");
+    Serial.print(now.day());
+    Serial.print("/");
+    Serial.print(now.month());
+    Serial.print("/");
+    Serial.print(now.year(), DEC);
+    Serial.print(" ");
+    Serial.print("TIME");
+    Serial.print(" ");
+    Serial.print(now.hour());
+    Serial.print(":");
+    Serial.print(now.minute());
+    Serial.print(":");
+    Serial.print(now.second());
+    Serial.print(" ");
+    Serial.println(daysOfTheWeek[now.dayOfTheWeek()]);
+    display.clearDisplay();
+      display.setCursor(0, 0);
+      display.print("Found id :");
+      display.print(" ");
+      display.print(finger.fingerID);
+      display.display();
+    tone(buzzer, 2200);
+    digitalWrite(led, HIGH);
+    delay(300);
+    noTone(buzzer);
+    digitalWrite(led, LOW);
+    delay(1000);
+  } 
+  else 
+    {
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.println("Not found");
+      display.display();
+      delay(1000);
+    }
+}
+ 
+
+  if (digitalRead(regi) == 0)
+   {
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("Please enter an ID :: ");
+        display.setTextColor(WHITE, BLACK);
+        display.setCursor(0, 10);
+        display.print("1");
+        display.display();
+        delay(1000);
+        while (1)
+        {
+            if (digitalRead(up) == 0)
+            {
+             ++id;
+                display.setCursor(0, 10);
+                display.print(id);
+                display.display();
+                delay(1000);             
+            }
+            else if (digitalRead(down) == 0)
+            {
+                --id;
+                if (id <= 0)
+                    id = 1;
+                display.setCursor(0, 10);
+                display.print(id);
+                display.display();
+                delay(1000);
+            }
+            else if (digitalRead(regi) == 0)
+            {
+                display.print(" OK");
+                display.display();
+                delay(2000);
+                break;
+            }            
+        }
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.print("Enrolling an Id....");
+        display.println(id);
+        display.display();
+        delay(2000);
+      
+     
+     while(1)
+     {
+      int p = -1;
+      p = finger.getImage();
+      if (p == FINGERPRINT_OK)
+        {
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            display.print("Image Taken");
+            display.display();
+            tone(buzzer, 2200);
+            delay(300);
+            noTone(buzzer);
+            delay(1000);
+            p = finger.image2Tz(1);
+            if (p == FINGERPRINT_OK)
+            {
+             display.clearDisplay();
+             display.setCursor(0, 0);
+             display.print("Remove your Finger");
+             display.display();
+             delay(1000);
+             while(1)
+             {
+               p=-1;
+               p=finger.getImage();
+               if(p== FINGERPRINT_OK)
+               {
+                 display.clearDisplay();
+                 display.setCursor(0, 0);
+                 display.print("Image Taken");
+                 display.display();
+                 tone(buzzer, 2200);
+                 delay(300);
+                 noTone(buzzer);
+                 delay(1000); 
+                 p = finger.image2Tz(2);
+                if (p == FINGERPRINT_OK)
+                 {
+                 delay(3000);
+                 p = finger.createModel();
+                 if (p == FINGERPRINT_OK)
+                 {
+                  display.clearDisplay();
+                  display.setCursor(9, 0);
+                  display.println("Prints matched!");
+                  display.display();
+                  tone(buzzer, 5);
+                  delay(400);
+                  noTone(buzzer);
+                    p = finger.storeModel(id);
+                  if (p == FINGERPRINT_OK)
+                  {
+                   Serial.print("Stored! :");
+                   Serial.print(" ");
+                   Serial.println(id);
+                   display.clearDisplay();
+                   display.setCursor(9, 10);
+                   display.println("Fingerprint stored!");
+                   display.display();
+                   delay(5000);
+                   goto e;
+                  }
+                  else {Serial.println("ERROR!!");goto e;}
+                }
+                else if (p == FINGERPRINT_ENROLLMISMATCH)
+               {
+                display.clearDisplay();
+                display.setCursor(0, 0);
+                display.println("Fingerprints did not match");
+                display.display();
+                digitalWrite(led, HIGH);
+                delay(4000);
+                digitalWrite(led, LOW);
+                goto e;
+               }
+               else {Serial.println("ERROR!!");goto e;}
+                 }
+                 else {Serial.println("ERROR!!");goto e;}
+               }
+               else if(p==FINGERPRINT_NOFINGER)
+               {
+                 display.clearDisplay();
+                 display.setCursor(0, 0);
+                 display.print("Enter the same finger again ");
+                 display.display();
+                 digitalWrite(led, HIGH);
+                 delay(200);
+                 digitalWrite(led, LOW);
+               }
+               else {Serial.println("ERROR!!");goto e;}
+             }
+            }
+            else {Serial.println("ERROR!!");goto e;}
+        }
+         else if (p == FINGERPRINT_NOFINGER)
+        {
+            display.clearDisplay();
+            display.setCursor(0, 0);
+            display.print("Enter your finger");
+            display.display();
+            digitalWrite(led, HIGH);
+            delay(200);
+            digitalWrite(led, LOW);
+        }
+        else {Serial.println("ERROR!!");break;}
+     }
+     
+   }
+        if(digitalRead(del)==0)
+    {
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("Deleting");
+        display.setTextColor(WHITE, BLACK);
+        display.setCursor(0, 10);
+        display.print("1");
+        display.display();
+        delay(2000);
+        while (1)
+              {
+                  if (digitalRead(up) == 0)
+                  {
+                   ++id;
+                      display.setCursor(0, 10);
+                      display.print(id);
+                      display.display();
+                      delay(1000);             
+                  }
+                  else if (digitalRead(down) == 0)
+                  {
+                      --id;
+                      if (id <= 0)
+                          id = 1;
+                      display.setCursor(0, 10);
+                      display.print(id);
+                      display.display();
+                      delay(1000);
+                  }
+                  else if (digitalRead(regi) == 0)
+                  {
+                  if(finger.deleteModel(id)==FINGERPRINT_OK)
+                  {
+                  Serial.print("Deleted id ::");
+                  Serial.print(" ");
+                  Serial.println(id);
+                  display.print(" DELETED ");
+                  display.display();
+                  delay(5000);  
+                  }
+                  else {Serial.println("ERROR!!");}  
+                  break;
+                  }       
+              }
+        }
+
+}
